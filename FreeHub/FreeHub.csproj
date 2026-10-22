@@ -82,6 +82,7 @@
     <Compile Include="Core\IProcessClassifier.cs" />
     <Compile Include="Core\ITelemetryRepository.cs" />
     <Compile Include="Core\WindowActivityLog.cs" />
+    <Compile Include="Infrastructure\Win32ActiveWindowTracker.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UI\MainHudForm.cs">
@@ -111,7 +112,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Infrastructure\" />
     <Folder Include="Services\" />
   </ItemGroup>
   <ItemGroup>
