@@ -82,6 +82,8 @@
     <Compile Include="Core\IProcessClassifier.cs" />
     <Compile Include="Core\ITelemetryRepository.cs" />
     <Compile Include="Core\WindowActivityLog.cs" />
+    <Compile Include="Infrastructure\SqliteTelemetryRepository.cs" />
+    <Compile Include="Infrastructure\StoragePathResolver.cs" />
     <Compile Include="Infrastructure\Win32ActiveWindowTracker.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
