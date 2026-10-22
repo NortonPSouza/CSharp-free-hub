@@ -163,8 +163,8 @@ FreeHub/
 ### Build & Run
 1. Clone the repository:
    ```powershell
-   git clone https://github.com/NortonPSouza/C--free-pulse.git
-   cd C--free-pulse
+   git clone https://github.com/NortonPSouza/CSharp-free-hub.git
+   cd CSharp-free-hub
    ```
 2. Open `FreeHub.sln` in **Visual Studio 2019**.
 3. Restore NuGet packages:
