@@ -83,27 +83,27 @@ namespace FreeHub.UI
             this.lblXpStatus.AutoSize = true;
             this.lblXpStatus.Font = new System.Drawing.Font("Segoe UI Semibold", 11F, System.Drawing.FontStyle.Bold);
             this.lblXpStatus.ForeColor = System.Drawing.Color.FromArgb(200, 200, 215);
-            this.lblXpStatus.Location = new System.Drawing.Point(130, 21);
+            this.lblXpStatus.Location = new System.Drawing.Point(135, 21);
             this.lblXpStatus.Name = "lblXpStatus";
-            this.lblXpStatus.Size = new System.Drawing.Size(150, 20);
+            this.lblXpStatus.Size = new System.Drawing.Size(120, 20);
             this.lblXpStatus.TabIndex = 1;
-            this.lblXpStatus.Text = "0 / 100 XP (Total: 0)";
+            this.lblXpStatus.Text = "0 / 100 XP (0%)";
             // 
             // lblStreak
             // 
             this.lblStreak.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lblStreak.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
             this.lblStreak.ForeColor = System.Drawing.Color.FromArgb(255, 171, 0);
-            this.lblStreak.Location = new System.Drawing.Point(520, 21);
+            this.lblStreak.Location = new System.Drawing.Point(420, 21);
             this.lblStreak.Name = "lblStreak";
-            this.lblStreak.Size = new System.Drawing.Size(220, 22);
+            this.lblStreak.Size = new System.Drawing.Size(320, 22);
             this.lblStreak.TabIndex = 2;
             this.lblStreak.Text = "Focus Streak: 0x";
             this.lblStreak.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
             // pbLevelProgress
             // 
-            this.pbLevelProgress.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+            this.pbLevelProgress.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.pbLevelProgress.Location = new System.Drawing.Point(16, 58);
             this.pbLevelProgress.Maximum = 100;
@@ -138,7 +138,7 @@ namespace FreeHub.UI
             // lblActiveWindowTitle
             // 
             this.lblActiveWindowTitle.AutoEllipsis = true;
-            this.lblActiveWindowTitle.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+            this.lblActiveWindowTitle.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.lblActiveWindowTitle.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Regular);
             this.lblActiveWindowTitle.ForeColor = System.Drawing.Color.FromArgb(180, 180, 195);
@@ -206,7 +206,7 @@ namespace FreeHub.UI
             this.Controls.Add(this.pnlHeader);
             this.Name = "MainHudForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "FreeHub — Gamified Telemetry HUD";
+            this.Text = "FreeHub - Gamified Telemetry HUD";
             this.pnlHeader.ResumeLayout(false);
             this.pnlHeader.PerformLayout();
             this.pnlCurrentActivity.ResumeLayout(false);

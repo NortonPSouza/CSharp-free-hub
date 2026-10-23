@@ -10,6 +10,7 @@ namespace FreeHub.UI
     {
         private const int TickIntervalSeconds = 5;
         private readonly TelemetryOrchestrator _orchestrator;
+        private Icon _customAppIcon;
 
         // Parameterless constructor required by Visual Studio WinForms Designer.
         public MainHudForm()
@@ -28,8 +29,9 @@ namespace FreeHub.UI
             _orchestrator = orchestrator;
             _orchestrator.LevelUpOccurred += OnLevelUpOccurred;
 
-            this.notifyIconTray.Icon = SystemIcons.Application;
-            this.Icon = SystemIcons.Application;
+            _customAppIcon = HudIconFactory.CreateNeonPulseIcon();
+            this.Icon = _customAppIcon;
+            this.notifyIconTray.Icon = _customAppIcon;
 
             this.Load += OnFormLoad;
             this.Resize += OnFormResize;
@@ -61,11 +63,14 @@ namespace FreeHub.UI
 
             WindowActivityLog log = _orchestrator.ProcessTick(TickIntervalSeconds);
 
+            string musicTag = _orchestrator.IsMusicBuffActive ? " [MUSIC BUFF +10%]" : string.Empty;
+
             lblActiveProcessAndCategory.Text = string.Format(
-                "[{0}] Process: {1} (+{2} XP)",
+                "[{0}] Process: {1} (+{2} XP){3}",
                 log.Category.ToString().ToUpperInvariant(),
                 log.ProcessName,
-                log.EarnedXp);
+                log.EarnedXp,
+                musicTag);
 
             lblActiveWindowTitle.Text = string.IsNullOrWhiteSpace(log.WindowTitle)
                 ? "(No window title)"
@@ -79,12 +84,24 @@ namespace FreeHub.UI
         {
             lblLevel.Text = string.Format("LEVEL {0}", _orchestrator.CurrentLevel);
             lblXpStatus.Text = string.Format(
-                "{0} / {1} XP (Total: {2})",
+                "{0} / {1} XP ({2}%)",
                 _orchestrator.XpInCurrentLevel,
                 _orchestrator.XpRequiredPerLevel,
-                _orchestrator.TotalXp);
+                _orchestrator.LevelProgressPercent);
 
-            lblStreak.Text = string.Format("Focus Streak: {0}x", _orchestrator.FocusStreak);
+            if (_orchestrator.IsMusicBuffActive)
+            {
+                lblStreak.ForeColor = Color.FromArgb(0, 230, 118);
+                lblStreak.Text = string.Format("Streak: {0}x | Music Buff +10%", _orchestrator.FocusStreak);
+            }
+            else
+            {
+                lblStreak.ForeColor = Color.FromArgb(255, 171, 0);
+                lblStreak.Text = string.Format("Focus Streak: {0}x", _orchestrator.FocusStreak);
+            }
+
+            pbLevelProgress.Minimum = 0;
+            pbLevelProgress.Maximum = _orchestrator.XpRequiredPerLevel > 0 ? _orchestrator.XpRequiredPerLevel : 100;
 
             int progressValue = _orchestrator.XpInCurrentLevel;
             if (progressValue < pbLevelProgress.Minimum) progressValue = pbLevelProgress.Minimum;
@@ -99,8 +116,11 @@ namespace FreeHub.UI
 
         private void OnLevelUpOccurred(object sender, int newLevel)
         {
-            string message = string.Format("Congratulations! You reached Level {0}!", newLevel);
-            notifyIconTray.ShowBalloonTip(3000, "FREEHUB — LEVEL UP!", message, ToolTipIcon.Info);
+            string message = string.Format(
+                "Congratulations! You reached Level {0}! Next level requires {1} XP.",
+                newLevel,
+                _orchestrator.XpRequiredPerLevel);
+            notifyIconTray.ShowBalloonTip(3000, "FREEHUB - LEVEL UP!", message, ToolTipIcon.Info);
         }
 
         private void OnFormResize(object sender, EventArgs e)

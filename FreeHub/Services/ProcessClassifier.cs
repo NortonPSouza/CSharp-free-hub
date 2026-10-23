@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using FreeHub.Core;
 
@@ -10,9 +10,16 @@ namespace FreeHub.Services
         {
             "devenv",
             "code",
+            "antigravity",
+            "cursor",
+            "windsurf",
             "rider64",
             "notepad++",
             "gitExtensions",
+            "git",
+            "git-bash",
+            "postman",
+            "insomnia",
             "powershell",
             "cmd",
             "WindowsTerminal"
@@ -69,7 +76,7 @@ namespace FreeHub.Services
                 return ActivityCategory.Idle;
             }
 
-            if (CodingProcesses.Contains(normalizedProcess))
+            if (CodingProcesses.Contains(normalizedProcess) || IsCodingWindowTitle(windowTitle))
             {
                 return ActivityCategory.Coding;
             }
@@ -98,6 +105,7 @@ namespace FreeHub.Services
             {
                 return 0;
             }
+
             int baseXpPerMinute;
             switch (category)
             {
@@ -120,12 +128,25 @@ namespace FreeHub.Services
                 default:
                     return 0;
             }
+
             int calculatedXp = (int)Math.Round((durationSeconds / 60.0) * baseXpPerMinute);
             if (calculatedXp < 1)
             {
                 calculatedXp = 1;
             }
+
             return calculatedXp;
+        }
+
+        private static bool IsCodingWindowTitle(string windowTitle)
+        {
+            if (string.IsNullOrWhiteSpace(windowTitle))
+            {
+                return false;
+            }
+
+            return windowTitle.IndexOf("Antigravity", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   windowTitle.IndexOf("Visual Studio", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static ActivityCategory ClassifyBrowserActivity(string windowTitle)
@@ -134,6 +155,7 @@ namespace FreeHub.Services
             {
                 return ActivityCategory.Browsing;
             }
+
             string[] codingKeywords = new string[]
             {
                 "GitHub",
@@ -142,8 +164,10 @@ namespace FreeHub.Services
                 "Microsoft Learn",
                 "Documentation",
                 "Pull Request",
-                "localhost"
+                "localhost",
+                "Antigravity"
             };
+
             for (int i = 0; i < codingKeywords.Length; i++)
             {
                 if (windowTitle.IndexOf(codingKeywords[i], StringComparison.OrdinalIgnoreCase) >= 0)
@@ -151,6 +175,7 @@ namespace FreeHub.Services
                     return ActivityCategory.Coding;
                 }
             }
+
             return ActivityCategory.Browsing;
         }
     }
