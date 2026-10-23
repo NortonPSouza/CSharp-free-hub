@@ -66,6 +66,11 @@ namespace FreeHub.Services
         public void Initialize()
         {
             _repository.Initialize();
+            ReloadTotalXp();
+        }
+
+        public void ReloadTotalXp()
+        {
             TotalXp = _repository.GetTotalXpAllMachines();
             RecalculateLevelState();
         }

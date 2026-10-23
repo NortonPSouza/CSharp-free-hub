@@ -12,11 +12,14 @@ namespace FreeHub.UI
         private System.Windows.Forms.Panel pnlCurrentActivity;
         private System.Windows.Forms.Label lblActiveWindowTitle;
         private System.Windows.Forms.Label lblActiveProcessAndCategory;
+        private System.Windows.Forms.Button btnSyncCloud;
+        private System.Windows.Forms.Button btnCloudSettings;
         private System.Windows.Forms.DataGridView dgvCategorySummary;
         private System.Windows.Forms.Timer tmrTelemetry;
         private System.Windows.Forms.NotifyIcon notifyIconTray;
         private System.Windows.Forms.ContextMenuStrip cmsTrayMenu;
         private System.Windows.Forms.ToolStripMenuItem tsmiOpenHud;
+        private System.Windows.Forms.ToolStripMenuItem tsmiSyncNow;
         private System.Windows.Forms.ToolStripMenuItem tsmiExit;
 
         protected override void Dispose(bool disposing)
@@ -39,6 +42,8 @@ namespace FreeHub.UI
             this.lblStreak = new System.Windows.Forms.Label();
             this.pbLevelProgress = new System.Windows.Forms.ProgressBar();
             this.pnlCurrentActivity = new System.Windows.Forms.Panel();
+            this.btnCloudSettings = new System.Windows.Forms.Button();
+            this.btnSyncCloud = new System.Windows.Forms.Button();
             this.lblActiveProcessAndCategory = new System.Windows.Forms.Label();
             this.lblActiveWindowTitle = new System.Windows.Forms.Label();
             this.dgvCategorySummary = new System.Windows.Forms.DataGridView();
@@ -46,6 +51,7 @@ namespace FreeHub.UI
             this.notifyIconTray = new System.Windows.Forms.NotifyIcon(this.components);
             this.cmsTrayMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.tsmiOpenHud = new System.Windows.Forms.ToolStripMenuItem();
+            this.tsmiSyncNow = new System.Windows.Forms.ToolStripMenuItem();
             this.tsmiExit = new System.Windows.Forms.ToolStripMenuItem();
             this.pnlHeader.SuspendLayout();
             this.pnlCurrentActivity.SuspendLayout();
@@ -115,6 +121,8 @@ namespace FreeHub.UI
             // pnlCurrentActivity
             // 
             this.pnlCurrentActivity.BackColor = System.Drawing.Color.FromArgb(32, 32, 44);
+            this.pnlCurrentActivity.Controls.Add(this.btnCloudSettings);
+            this.pnlCurrentActivity.Controls.Add(this.btnSyncCloud);
             this.pnlCurrentActivity.Controls.Add(this.lblActiveWindowTitle);
             this.pnlCurrentActivity.Controls.Add(this.lblActiveProcessAndCategory);
             this.pnlCurrentActivity.Dock = System.Windows.Forms.DockStyle.Top;
@@ -123,6 +131,36 @@ namespace FreeHub.UI
             this.pnlCurrentActivity.Padding = new System.Windows.Forms.Padding(16, 10, 16, 10);
             this.pnlCurrentActivity.Size = new System.Drawing.Size(760, 75);
             this.pnlCurrentActivity.TabIndex = 1;
+            // 
+            // btnSyncCloud
+            // 
+            this.btnSyncCloud.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnSyncCloud.BackColor = System.Drawing.Color.FromArgb(66, 133, 244);
+            this.btnSyncCloud.FlatAppearance.BorderSize = 0;
+            this.btnSyncCloud.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSyncCloud.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold);
+            this.btnSyncCloud.ForeColor = System.Drawing.Color.White;
+            this.btnSyncCloud.Location = new System.Drawing.Point(565, 18);
+            this.btnSyncCloud.Name = "btnSyncCloud";
+            this.btnSyncCloud.Size = new System.Drawing.Size(140, 36);
+            this.btnSyncCloud.TabIndex = 2;
+            this.btnSyncCloud.Text = "Sync Google Drive";
+            this.btnSyncCloud.UseVisualStyleBackColor = false;
+            // 
+            // btnCloudSettings
+            // 
+            this.btnCloudSettings.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnCloudSettings.BackColor = System.Drawing.Color.FromArgb(52, 52, 68);
+            this.btnCloudSettings.FlatAppearance.BorderSize = 0;
+            this.btnCloudSettings.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnCloudSettings.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnCloudSettings.ForeColor = System.Drawing.Color.FromArgb(200, 200, 215);
+            this.btnCloudSettings.Location = new System.Drawing.Point(710, 18);
+            this.btnCloudSettings.Name = "btnCloudSettings";
+            this.btnCloudSettings.Size = new System.Drawing.Size(34, 36);
+            this.btnCloudSettings.TabIndex = 3;
+            this.btnCloudSettings.Text = "...";
+            this.btnCloudSettings.UseVisualStyleBackColor = false;
             // 
             // lblActiveProcessAndCategory
             // 
@@ -144,7 +182,7 @@ namespace FreeHub.UI
             this.lblActiveWindowTitle.ForeColor = System.Drawing.Color.FromArgb(180, 180, 195);
             this.lblActiveWindowTitle.Location = new System.Drawing.Point(16, 36);
             this.lblActiveWindowTitle.Name = "lblActiveWindowTitle";
-            this.lblActiveWindowTitle.Size = new System.Drawing.Size(728, 22);
+            this.lblActiveWindowTitle.Size = new System.Drawing.Size(535, 22);
             this.lblActiveWindowTitle.TabIndex = 1;
             this.lblActiveWindowTitle.Text = "-";
             // 
@@ -179,20 +217,27 @@ namespace FreeHub.UI
             // 
             this.cmsTrayMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsmiOpenHud,
+            this.tsmiSyncNow,
             this.tsmiExit});
             this.cmsTrayMenu.Name = "cmsTrayMenu";
-            this.cmsTrayMenu.Size = new System.Drawing.Size(140, 48);
+            this.cmsTrayMenu.Size = new System.Drawing.Size(170, 70);
             // 
             // tsmiOpenHud
             // 
             this.tsmiOpenHud.Name = "tsmiOpenHud";
-            this.tsmiOpenHud.Size = new System.Drawing.Size(139, 22);
+            this.tsmiOpenHud.Size = new System.Drawing.Size(169, 22);
             this.tsmiOpenHud.Text = "Open HUD";
+            // 
+            // tsmiSyncNow
+            // 
+            this.tsmiSyncNow.Name = "tsmiSyncNow";
+            this.tsmiSyncNow.Size = new System.Drawing.Size(169, 22);
+            this.tsmiSyncNow.Text = "Sync Google Drive";
             // 
             // tsmiExit
             // 
             this.tsmiExit.Name = "tsmiExit";
-            this.tsmiExit.Size = new System.Drawing.Size(139, 22);
+            this.tsmiExit.Size = new System.Drawing.Size(169, 22);
             this.tsmiExit.Text = "Exit FreeHub";
             // 
             // MainHudForm

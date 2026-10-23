@@ -9,8 +9,14 @@ namespace FreeHub.UI
     public partial class MainHudForm : Form
     {
         private const int TickIntervalSeconds = 5;
+        private const int AutoSyncEveryTicks = 60; // 60 * 5s = 5 minutes
+
         private readonly TelemetryOrchestrator _orchestrator;
+        private readonly ICloudSyncService _cloudSyncService;
         private Icon _customAppIcon;
+        private int _tickCounter;
+        private bool _isSyncing;
+        private bool _allowExit;
 
         // Parameterless constructor required by Visual Studio WinForms Designer.
         public MainHudForm()
@@ -18,7 +24,7 @@ namespace FreeHub.UI
             InitializeComponent();
         }
 
-        public MainHudForm(TelemetryOrchestrator orchestrator)
+        public MainHudForm(TelemetryOrchestrator orchestrator, ICloudSyncService cloudSyncService)
             : this()
         {
             if (orchestrator == null)
@@ -27,6 +33,7 @@ namespace FreeHub.UI
             }
 
             _orchestrator = orchestrator;
+            _cloudSyncService = cloudSyncService;
             _orchestrator.LevelUpOccurred += OnLevelUpOccurred;
 
             _customAppIcon = HudIconFactory.CreateNeonPulseIcon();
@@ -35,7 +42,11 @@ namespace FreeHub.UI
 
             this.Load += OnFormLoad;
             this.Resize += OnFormResize;
+            this.FormClosing += OnFormClosing;
             this.tmrTelemetry.Tick += OnTelemetryTimerTick;
+            this.btnSyncCloud.Click += OnSyncCloudClicked;
+            this.btnCloudSettings.Click += OnCloudSettingsClicked;
+            this.tsmiSyncNow.Click += OnSyncCloudClicked;
             this.notifyIconTray.DoubleClick += OnTrayOpenClicked;
             this.tsmiOpenHud.Click += OnTrayOpenClicked;
             this.tsmiExit.Click += OnTrayExitClicked;
@@ -54,7 +65,7 @@ namespace FreeHub.UI
             tmrTelemetry.Start();
         }
 
-        private void OnTelemetryTimerTick(object sender, EventArgs e)
+        private async void OnTelemetryTimerTick(object sender, EventArgs e)
         {
             if (_orchestrator == null)
             {
@@ -78,6 +89,103 @@ namespace FreeHub.UI
 
             RefreshHeaderStats();
             RefreshSummaryGrid();
+
+            _tickCounter++;
+            if (_tickCounter >= AutoSyncEveryTicks && _cloudSyncService != null && _cloudSyncService.IsConfigured() && !_isSyncing)
+            {
+                _tickCounter = 0;
+                await RunCloudSyncAsync(false);
+            }
+        }
+
+        private async void OnSyncCloudClicked(object sender, EventArgs e)
+        {
+            if (_cloudSyncService == null)
+            {
+                return;
+            }
+
+            if (!_cloudSyncService.IsConfigured())
+            {
+                if (!PromptForCloudCredentials())
+                {
+                    return;
+                }
+            }
+
+            await RunCloudSyncAsync(true);
+        }
+
+        private async void OnCloudSettingsClicked(object sender, EventArgs e)
+        {
+            if (_cloudSyncService == null)
+            {
+                return;
+            }
+
+            if (PromptForCloudCredentials())
+            {
+                await RunCloudSyncAsync(true);
+            }
+        }
+
+        private bool PromptForCloudCredentials()
+        {
+            using (CloudSyncSetupForm dialog = new CloudSyncSetupForm(_cloudSyncService.GetClientId()))
+            {
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    _cloudSyncService.SaveCredentials(dialog.ClientId, dialog.ClientSecret);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private async System.Threading.Tasks.Task RunCloudSyncAsync(bool showNotification)
+        {
+            if (_isSyncing || _cloudSyncService == null)
+            {
+                return;
+            }
+
+            _isSyncing = true;
+            btnSyncCloud.Enabled = false;
+            btnSyncCloud.Text = "Syncing...";
+
+            try
+            {
+                CloudSyncResult result = await _cloudSyncService.SynchronizeAsync();
+
+                _orchestrator.ReloadTotalXp();
+                RefreshHeaderStats();
+                RefreshSummaryGrid();
+
+                if (result.Success)
+                {
+                    btnSyncCloud.BackColor = Color.FromArgb(0, 180, 90);
+                    btnSyncCloud.Text = "Drive Synced!";
+                    if (showNotification)
+                    {
+                        notifyIconTray.ShowBalloonTip(2500, "Google Drive Sync", result.Message, ToolTipIcon.Info);
+                    }
+                }
+                else
+                {
+                    btnSyncCloud.BackColor = Color.FromArgb(211, 47, 47);
+                    btnSyncCloud.Text = "Sync Failed";
+                    if (showNotification)
+                    {
+                        MessageBox.Show(this, result.Message, "Google Drive Sync Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                }
+            }
+            finally
+            {
+                btnSyncCloud.Enabled = true;
+                _isSyncing = false;
+            }
         }
 
         private void RefreshHeaderStats()
@@ -127,14 +235,28 @@ namespace FreeHub.UI
         {
             if (this.WindowState == FormWindowState.Minimized)
             {
-                this.Hide();
-                this.ShowInTaskbar = false;
-                notifyIconTray.ShowBalloonTip(
-                    2000,
-                    "FreeHub Running in Background",
-                    "Double-click the tray icon anytime to open the HUD.",
-                    ToolTipIcon.None);
+                MinimizeToSystemTray();
             }
+        }
+
+        private void OnFormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (!_allowExit && e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+                MinimizeToSystemTray();
+            }
+        }
+
+        private void MinimizeToSystemTray()
+        {
+            this.Hide();
+            this.ShowInTaskbar = false;
+            notifyIconTray.ShowBalloonTip(
+                2000,
+                "FreeHub Running in System Tray",
+                "Right-click the tray icon and select 'Exit FreeHub' to close completely.",
+                ToolTipIcon.None);
         }
 
         private void OnTrayOpenClicked(object sender, EventArgs e)
@@ -147,6 +269,7 @@ namespace FreeHub.UI
 
         private void OnTrayExitClicked(object sender, EventArgs e)
         {
+            _allowExit = true;
             tmrTelemetry.Stop();
             notifyIconTray.Visible = false;
             Application.Exit();
