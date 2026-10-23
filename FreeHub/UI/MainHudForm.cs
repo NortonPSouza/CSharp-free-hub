@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Globalization;
 using System.Windows.Forms;
 using FreeHub.Core;
 using FreeHub.Services;
@@ -47,6 +48,7 @@ namespace FreeHub.UI
             this.btnSyncCloud.Click += OnSyncCloudClicked;
             this.btnCloudSettings.Click += OnCloudSettingsClicked;
             this.tsmiSyncNow.Click += OnSyncCloudClicked;
+            this.dgvCategorySummary.RowPrePaint += OnSummaryGridRowPrePaint;
             this.notifyIconTray.DoubleClick += OnTrayOpenClicked;
             this.tsmiOpenHud.Click += OnTrayOpenClicked;
             this.tsmiExit.Click += OnTrayExitClicked;
@@ -210,16 +212,59 @@ namespace FreeHub.UI
 
             pbLevelProgress.Minimum = 0;
             pbLevelProgress.Maximum = _orchestrator.XpRequiredPerLevel > 0 ? _orchestrator.XpRequiredPerLevel : 100;
+            pbLevelProgress.IsBoostActive = _orchestrator.IsMusicBuffActive || _orchestrator.FocusStreak >= 3;
 
-            int progressValue = _orchestrator.XpInCurrentLevel;
-            if (progressValue < pbLevelProgress.Minimum) progressValue = pbLevelProgress.Minimum;
-            if (progressValue > pbLevelProgress.Maximum) progressValue = pbLevelProgress.Maximum;
-            pbLevelProgress.Value = progressValue;
+            int remainingXp = Math.Max(0, _orchestrator.XpRequiredPerLevel - _orchestrator.XpInCurrentLevel);
+            pbLevelProgress.OverlayText = string.Format("{0}% — {1} XP to Level {2}",
+                _orchestrator.LevelProgressPercent,
+                remainingXp,
+                _orchestrator.CurrentLevel + 1);
+
+            pbLevelProgress.HoverOverlayText = string.Format(
+                CultureInfo.InvariantCulture,
+                "Multiplier: {0:0.0}x  |  Total Career XP: {1}  |  {2} XP needed for Level {3}",
+                _orchestrator.CurrentXpMultiplier,
+                _orchestrator.TotalXp,
+                remainingXp,
+                _orchestrator.CurrentLevel + 1);
+
+            pbLevelProgress.SetTargetValue(_orchestrator.XpInCurrentLevel);
         }
 
         private void RefreshSummaryGrid()
         {
             dgvCategorySummary.DataSource = _orchestrator.GetCategorySummaryTable();
+            dgvCategorySummary.ClearSelection();
+        }
+
+        private void OnSummaryGridRowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.RowIndex >= dgvCategorySummary.Rows.Count)
+            {
+                return;
+            }
+
+            DataGridViewRow row = dgvCategorySummary.Rows[e.RowIndex];
+            object statusObj = row.Cells["Status"] != null ? row.Cells["Status"].Value : null;
+            string status = statusObj != null ? statusObj.ToString() : string.Empty;
+
+            if (string.Equals(status, "ACTIVE NOW", StringComparison.OrdinalIgnoreCase))
+            {
+                row.DefaultCellStyle.BackColor = Color.FromArgb(16, 54, 44);
+                row.DefaultCellStyle.ForeColor = Color.FromArgb(0, 230, 118);
+                row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(20, 68, 56);
+                row.DefaultCellStyle.SelectionForeColor = Color.FromArgb(0, 230, 118);
+            }
+            else
+            {
+                Color zebraBg = (e.RowIndex % 2 == 0)
+                    ? Color.FromArgb(20, 20, 28)
+                    : Color.FromArgb(25, 25, 35);
+                row.DefaultCellStyle.BackColor = zebraBg;
+                row.DefaultCellStyle.ForeColor = Color.FromArgb(205, 210, 222);
+                row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(34, 42, 60);
+                row.DefaultCellStyle.SelectionForeColor = Color.White;
+            }
         }
 
         private void OnLevelUpOccurred(object sender, int newLevel)

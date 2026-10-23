@@ -20,11 +20,12 @@
 
 <br/>
 
-O **FreeHub** é um utilitário desktop para Windows focado em produtividade passiva e gamificação (ideal para TDAH, com recompensa visual imediata e **zero digitação manual de tarefas**). Ele roda silenciosamente na bandeja do sistema (*System Tray*) com um HUD estilo Gamer, monitorando automaticamente a janela ativa do sistema operacional via **Win32 API (`user32.dll`)**, classificando a atividade em tempo real (`Coding`, `Database`, `Gaming`, `Browsing`, `Idle`) e concedendo **XP passivo**, *combos de foco* e *level-ups*.
+O **FreeHub** é um utilitário desktop para Windows focado em produtividade passiva e gamificação (ideal para TDAH, com recompensa visual imediata e **zero digitação manual de tarefas**). Ele roda silenciosamente na bandeja do sistema (*System Tray*) com um HUD estilo Gamer, monitorando automaticamente a janela ativa do sistema operacional via **Win32 API (`user32.dll`)**, classificando a atividade em tempo real (`Coding`, `Database`, `Gaming`, `Browsing`, `Idle`) e concedendo **XP passivo**, *combos de foco*, **Buff de Música em Tempo Real (`Core Audio API`)** e *level-ups* com curva de progressão RPG.
 
-Possui uma arquitetura **Local-First + Sincronização Multi-Máquina Livre de Conflitos**:
-1. **Persistência Local Ultrarrápida:** Cada computador grava apenas no seu próprio arquivo `freehub_<MACHINE>.db` (em `%LocalAppData%\FreeHub_Data` ou pasta compartilhada) com `Journal Mode=TRUNCATE` e `Pooling=False`.
-2. **Sincronização em Nuvem via Google Drive API (HTTP / OAuth 2.0):** Permite autenticar diretamente na conta Google via OAuth 2.0 para fazer upload do `.db` da máquina atual e download dos `.db` das outras máquinas via HTTP — sem exigir a instalação do aplicativo Google Drive Desktop no PC do trabalho!
+Destaques técnicos:
+1. **Persistência Local Ultrarrápida + Leitura Unificada:** Cada computador grava apenas no seu próprio arquivo `freehub_<MACHINE>.db` com `Journal Mode=TRUNCATE` e `Pooling=False`, enquanto o HUD unifica todos os bancos na visualização.
+2. **Sincronização em Nuvem via Google Drive API v3 (HTTP / OAuth 2.0):** Login OAuth 2.0 via `TcpListener` em modo usuário para upload/download automático dos arquivos `.db` entre máquinas sem depender do cliente Google Drive Desktop.
+3. **Executável Único Portátil (`FreeHub.exe`):** Embute `System.Data.SQLite.dll` e `SQLite.Interop.dll` (x86) como recursos internos extraídos automaticamente pelo `NativeDependencyBootstrapper`.
 
 </details>
 
@@ -34,13 +35,18 @@ Possui uma arquitetura **Local-First + Sincronização Multi-Máquina Livre de C
 
 Traditional time trackers fail because they require manual timers and constant task typing. **FreeHub** takes a completely passive, ADHD-friendly approach inspired by **RPG HUDs** and **Spotify Wrapped**:
 
-1. **Zero Manual Input:** Runs quietly in the Windows System Tray and tracks foreground windows automatically via native Win32 P/Invoke (`User32.dll`).
-2. **Real-Time Process Classification & Gamification:** Identifies what you are doing (`devenv` = **Coding**, `ssms`/`sqldeveloper` = **Database**, games = **Gaming**, browsers = **Browsing**) and rewards passive XP per minute, maintaining focus streaks/combos and triggering visual level-ups.
-3. **Conflict-Free Multi-Machine Sync (Local SQLite + Google Drive HTTP API):**
-   * Designed to run seamlessly across multiple PCs (**Work PC**, **Home PC**, **Laptop**).
-   * **Write Isolation:** Each machine writes *exclusively* to its own local SQLite database named after `Environment.MachineName` (e.g., `freehub_WORK-PC.db`, `freehub_HOME-PC.db`) configured with `Journal Mode=TRUNCATE;` and `Pooling=False;` to release file handles immediately.
-   * **Cloud Sync via HTTP (OAuth 2.0) or Shared Drive:** Supports both automatic local folder discovery and direct **Google Drive REST API v3** synchronization (authenticating via OAuth 2.0 Bearer Token to upload the local machine's `.db` and download other machines' `freehub_*.db` files without needing the Google Drive Desktop client installed).
-   * **Unified Read Aggregation:** When rendering the HUD, Total XP, or analytics grids/charts, `SqliteTelemetryRepository` dynamically discovers all `freehub_*.db` files in `FreeHub_Data` and merges the telemetry into unified views (`DataTable` & domain lists).
+1. **Zero Manual Input & System Tray Persistence:** Runs quietly in the Windows System Tray (minimizing or closing with `X` keeps it alive in the tray; right-click $\rightarrow$ *Exit FreeHub* closes it) and tracks foreground windows automatically via native Win32 P/Invoke (`User32.dll`).
+2. **Real-Time Process Classification & RPG Gamification:**
+   * Classifies active processes (`devenv`/`antigravity`/`code` = **Coding**, `ssms`/`sqldeveloper` = **Database**, games = **Gaming**, browsers = **Browsing** with smart detection of developer docs like GitHub/Stack Overflow/Microsoft Learn).
+   * **Scalable RPG XP Curve:** Level requirements scale dynamically ($100 \times \text{Level}^{1.35}$) so early levels reward quick dopamine while higher levels represent long-term milestones.
+   * **Real-Time Audio Music Buff (`+10% XP`):** Queries the native Windows Core Audio peak meter (`IAudioMeterInformation`) in real time — playing music on Spotify/YouTube Music activates a live `+10% XP` buff that turns off immediately when paused.
+3. **Dynamic Gamer HUD:**
+   * **Owner-Drawn `NeonProgressBar`:** Custom GDI+ gradient progress bar with smooth interpolation, boost color shifting (Cyan-to-Emerald $\rightarrow$ Cyberpunk Violet-to-Neon when Streak/Music Buff is active), and interactive mouse-over telemetry stats.
+   * **Live Priority `DataGridView`:** Automatically pins the currently active category and machine to the top row (`ACTIVE NOW`), highlights it in neon emerald, and calculates each category's `% Share`.
+4. **Conflict-Free Multi-Machine Sync (Local SQLite + Google Drive HTTP API):**
+   * **Write Isolation:** Each machine writes *exclusively* to its own local SQLite database named after `Environment.MachineName` (`freehub_<MACHINE>.db`) with `Journal Mode=TRUNCATE;` and `Pooling=False;`.
+   * **Cloud Sync via HTTP (OAuth 2.0):** Built-in `GoogleDriveHttpSyncService` authenticates via OAuth 2.0 Loopback (`TcpListener` + `HttpClient`) to upload the local machine's `.db` and download other machines' `freehub_*.db` files.
+   * **Single-File Portable `.exe`:** `NativeDependencyBootstrapper` embeds and resolves both managed and native x86 SQLite assemblies directly from inside `FreeHub.exe`.
 
 ---
 
@@ -52,13 +58,15 @@ The project strictly follows **SOLID**, **Clean Code**, and **Layered Architectu
 flowchart LR
     subgraph OS["Windows OS"]
         W32["User32.dll\n(GetForegroundWindow)"]
+        AUDIO["Core Audio COM\n(IAudioMeterInformation)"]
     end
 
     subgraph Infra["Infrastructure Layer"]
         WT["Win32ActiveWindowTracker"]
         PATH["StoragePathResolver"]
         REPO["SqliteTelemetryRepository"]
-        SYNC["GoogleDriveSyncService\n(OAuth 2.0 / HTTP API)"]
+        SYNC["GoogleDriveHttpSyncService\n(OAuth 2.0 / HTTP API)"]
+        BOOT["NativeDependencyBootstrapper\n(Single-File SQLite Loader)"]
         DB1[("freehub_WORK-PC.db\n(Local Write)")]
         DB2[("freehub_HOME-PC.db\n(Synced Read-Only)")]
     end
@@ -71,21 +79,24 @@ flowchart LR
         IWT["IActiveWindowTracker"]
         IPC["IProcessClassifier"]
         IREPO["ITelemetryRepository"]
+        ISYNC["ICloudSyncService"]
     end
 
     subgraph Services["Services Layer"]
         PC["ProcessClassifier\n(Strategy / Rules)"]
-        ORCH["TelemetryOrchestrator\n(XP, Streaks & Leveling)"]
+        ORCH["TelemetryOrchestrator\n(XP Curve, Streaks & Buffs)"]
     end
 
     subgraph UI["UI Layer (WinForms / DevExpress)"]
-        HUD["MainHudForm & TrayIcon"]
+        HUD["MainHudForm, NeonProgressBar & TrayIcon"]
     end
 
     W32 --> WT
+    AUDIO --> WT
     WT -.->|Implements| IWT
     REPO --> PATH
     REPO -.->|Implements| IREPO
+    SYNC -.->|Implements| ISYNC
     REPO -->|Isolated Write| DB1
     REPO -->|Unified Read| DB1
     REPO -->|Unified Read| DB2
@@ -97,14 +108,8 @@ flowchart LR
     ORCH --> IPC
     ORCH --> IREPO
     HUD --> ORCH
+    HUD --> ISYNC
 ```
-
-### Key Patterns Applied
-* **Repository Pattern (`ITelemetryRepository`):** Abstracts single-node SQLite writes and multi-node database discovery/aggregation.
-* **Single Responsibility Path Resolution (`StoragePathResolver`):** Centralizes database directory discovery and filename sanitization per machine.
-* **Strategy / Rule Pattern (`IProcessClassifier`):** Extensible classification rules mapping process names and window titles to `ActivityCategory` and XP multipliers.
-* **Dependency Injection via Constructor:** Explicit dependency graph wired at the Composition Root (`Program.cs`).
-* **Strict Separation of Concerns:** Zero SQL queries or process inspection logic inside `Form` event handlers.
 
 ---
 
@@ -112,10 +117,11 @@ flowchart LR
 
 ```text
 FreeHub/
- ├── Core/            # Domain Entities, Enums, and Contracts (ITelemetryRepository, IActiveWindowTracker, IProcessClassifier)
- ├── Infrastructure/  # SQLite multi-machine persistence, path resolver, Google Drive HTTP sync, Win32 API P/Invoke (User32.dll)
- ├── Services/        # Process classification rules, XP/Streak/Level calculator, background Telemetry Orchestrator
- └── UI/              # Windows Forms HUD, System Tray (NotifyIcon) manager, and DevExpress 18.1 views
+ ├── Core/            # Domain Entities, Enums, and Contracts (ITelemetryRepository, IActiveWindowTracker, IProcessClassifier, ICloudSyncService)
+ ├── Infrastructure/  # SQLite multi-machine persistence, path resolver, Google Drive OAuth2 HTTP sync, Win32 & CoreAudio P/Invoke, Single-File Bootstrapper
+ ├── Services/        # Process classification rules, scalable RPG XP curve, Streak & Music Buff calculator, Telemetry Orchestrator
+ ├── UI/              # MainHudForm, custom GDI+ NeonProgressBar, CloudSyncSetupForm, custom vector HudIconFactory, System Tray manager
+ └── Resources/       # Custom application icon (freehub.ico)
 ```
 
 ---
@@ -129,7 +135,7 @@ FreeHub/
 | **Platform Target** | Strictly **x86 (32-bit)** (native Win32 & unmanaged SQLite interop compatibility) |
 | **Database** | `System.Data.SQLite.Core` (`v1.0.119.0`) with `Journal Mode=TRUNCATE;` & `Pooling=False;` |
 | **Cloud Sync** | Local folder discovery + **Google Drive REST API v3** (`OAuth 2.0` HTTP upload/download) |
-| **UI Framework (Phase 1)** | Pure Windows Forms (`Form`, `DataGridView`, `NotifyIcon`, `Timer`, `ProgressBar`) |
+| **UI Framework (Phase 1)** | Pure Windows Forms (`Form`, custom GDI+ `NeonProgressBar`, dark-styled `DataGridView`, `NotifyIcon`, `Timer`) |
 | **UI Framework (Phase 2)** | **DevExpress 18.1.5.0** (`XtraForm`, `GridControl`, `GridView`, `XtraCharts`, `AlertControl`, `ProgressBarControl`, `The Bezier` Dark Skin) |
 
 ---
@@ -138,38 +144,18 @@ FreeHub/
 
 - [x] **Step 1 — Core Foundation & Project Setup**
   - [x] Configure strict `.NET Framework 4.6`, `C# 7.3`, and `x86` target build profile.
-  - [x] Define domain models (`ActivityCategory`, `WindowActivityLog`, `ActiveWindowInfo`) and core interfaces (`ITelemetryRepository`, `IActiveWindowTracker`, `IProcessClassifier`).
-- [x] **Step 2 — Infrastructure Layer (Win32 + Multi-Machine SQLite)**
-  - [x] Implement `Win32ActiveWindowTracker` via `user32.dll` (`GetForegroundWindow`, `GetWindowThreadProcessId`, `GetWindowText`).
+  - [x] Define domain models (`ActivityCategory`, `WindowActivityLog`, `ActiveWindowInfo`) and core interfaces (`ITelemetryRepository`, `IActiveWindowTracker`, `IProcessClassifier`, `ICloudSyncService`).
+- [x] **Step 2 — Infrastructure Layer (Win32 + CoreAudio + Multi-Machine SQLite)**
+  - [x] Implement `Win32ActiveWindowTracker` via `user32.dll` and real-time audio detection via Windows Core Audio (`IAudioMeterInformation`).
   - [x] Implement `StoragePathResolver` and `SqliteTelemetryRepository` with isolated per-machine writes and unified multi-DB read aggregation.
-- [ ] **Step 3 — Services & Gamification Engine**
-  - [ ] Implement `ProcessClassifier` rules (`Coding`, `Database`, `Gaming`, `Browsing`, `Idle`).
-  - [ ] Implement XP calculation, focus streak multipliers, and Level-Up events in `TelemetryService`.
-- [ ] **Step 4 — Phase 1 UI (Pure Windows Forms) & Cloud Sync**
-  - [ ] Build `MainHudForm` with real-time activity display, XP `ProgressBar`, `DataGridView` summary, and System Tray (`NotifyIcon`) integration.
-  - [ ] Add Google Drive OAuth 2.0 HTTP Sync integration (`ICloudSyncService`) for syncing `freehub_*.db` files across machines without requiring Google Drive Desktop.
+- [x] **Step 3 — Services & RPG Gamification Engine**
+  - [x] Implement `ProcessClassifier` rules (`Coding`, `Database`, `Gaming`, `Browsing`, `Idle`).
+  - [x] Implement scalable RPG XP curve ($100 \times \text{Level}^{1.35}$), focus streak multipliers, real-time Music Buff (`+10% XP`), and Level-Up events in `TelemetryOrchestrator`.
+- [x] **Step 4 — Phase 1 UI (Pure Windows Forms), Cloud Sync & Single-File `.exe`**
+  - [x] Build `MainHudForm` with custom GDI+ `NeonProgressBar` (smooth animation + interactive hover telemetry), active-first dark `DataGridView`, custom vector `.ico`, and System Tray persistence.
+  - [x] Implement `GoogleDriveHttpSyncService` (OAuth 2.0 Loopback via `TcpListener` + `HttpClient`) and `NativeDependencyBootstrapper` for single-file portable `FreeHub.exe` deployment.
 - [ ] **Step 5 — Phase 2 UI Migration (DevExpress 18.1.5)**
   - [ ] Migrate to `XtraForm` with dark theme skinning (`The Bezier`), `GridControl`/`GridView`, `XtraCharts` telemetry breakdown, and `AlertControl` level-up toasts.
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-* **Windows OS** (Windows 10 / 11)
-* **Visual Studio 2019** (or newer) with **.NET Desktop Development** workload
-* **.NET Framework 4.6 Targeting Pack**
-
-### Build & Run
-1. Clone the repository:
-   ```powershell
-   git clone https://github.com/NortonPSouza/CSharp-free-hub.git
-   cd CSharp-free-hub
-   ```
-2. Open `FreeHub.sln` in **Visual Studio 2019**.
-3. Restore NuGet packages:
-   * Right-click the solution in **Solution Explorer** $\rightarrow$ **Restore NuGet Packages** (or run `msbuild /t:Restore`).
-4. Ensure the active solution platform is set to **`Debug | x86`** and press **`F5`** to build and launch.
 
 ---
 
@@ -177,8 +163,8 @@ FreeHub/
 
 This project follows the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
-* `feat:` — New feature or capability (e.g., `feat(infra): implement Win32 foreground window tracker`)
-* `fix:` — Bug fix (e.g., `fix(sqlite): handle locked database file during cloud sync`)
+* `feat:` — New feature or capability
+* `fix:` — Bug fix
 * `refactor:` — Code restructuring without changing external behavior
-* `docs:` — Documentation updates (e.g., `docs: add architecture diagram and project roadmap to README`)
+* `docs:` — Documentation updates
 * `chore:` — Build scripts, `.csproj`, `.gitignore`, or dependency maintenance

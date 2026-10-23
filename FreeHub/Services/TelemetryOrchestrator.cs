@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using FreeHub.Core;
 
 namespace FreeHub.Services
@@ -43,6 +44,14 @@ namespace FreeHub.Services
         public int FocusStreak { get; private set; }
 
         public bool IsMusicBuffActive { get; private set; }
+
+        public double CurrentXpMultiplier
+        {
+            get
+            {
+                return CalculateMultiplier(FocusStreak, IsMusicBuffActive);
+            }
+        }
 
         public WindowActivityLog LastRecordedLog { get; private set; }
 
@@ -124,7 +133,65 @@ namespace FreeHub.Services
 
         public DataTable GetCategorySummaryTable()
         {
-            return _repository.GetCategorySummaryTable();
+            DataTable rawTable = _repository.GetCategorySummaryTable();
+
+            DataTable enrichedTable = new DataTable("CategorySummary");
+            enrichedTable.Columns.Add("Status", typeof(string));
+            enrichedTable.Columns.Add("MachineName", typeof(string));
+            enrichedTable.Columns.Add("Category", typeof(string));
+            enrichedTable.Columns.Add("TotalMinutes", typeof(double));
+            enrichedTable.Columns.Add("TotalXp", typeof(int));
+            enrichedTable.Columns.Add("Share", typeof(string));
+
+            if (rawTable == null || rawTable.Rows.Count == 0)
+            {
+                return enrichedTable;
+            }
+
+            string activeMachine = LastRecordedLog != null ? LastRecordedLog.MachineName : Environment.MachineName;
+            string activeCategory = LastRecordedLog != null ? LastRecordedLog.Category.ToString() : string.Empty;
+
+            int grandTotalXp = 0;
+            for (int i = 0; i < rawTable.Rows.Count; i++)
+            {
+                grandTotalXp += Convert.ToInt32(rawTable.Rows[i]["TotalXp"], CultureInfo.InvariantCulture);
+            }
+
+            List<DataRow> activeRows = new List<DataRow>();
+            List<DataRow> otherRows = new List<DataRow>();
+
+            for (int i = 0; i < rawTable.Rows.Count; i++)
+            {
+                DataRow row = rawTable.Rows[i];
+                string machine = Convert.ToString(row["MachineName"], CultureInfo.InvariantCulture);
+                string category = Convert.ToString(row["Category"], CultureInfo.InvariantCulture);
+
+                bool isCurrentActive =
+                    !string.IsNullOrEmpty(activeCategory) &&
+                    string.Equals(machine, activeMachine, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(category, activeCategory, StringComparison.OrdinalIgnoreCase);
+
+                if (isCurrentActive)
+                {
+                    activeRows.Add(row);
+                }
+                else
+                {
+                    otherRows.Add(row);
+                }
+            }
+
+            otherRows.Sort(delegate(DataRow a, DataRow b)
+            {
+                int xpA = Convert.ToInt32(a["TotalXp"], CultureInfo.InvariantCulture);
+                int xpB = Convert.ToInt32(b["TotalXp"], CultureInfo.InvariantCulture);
+                return xpB.CompareTo(xpA);
+            });
+
+            AppendSummaryRows(enrichedTable, activeRows, true, grandTotalXp);
+            AppendSummaryRows(enrichedTable, otherRows, false, grandTotalXp);
+
+            return enrichedTable;
         }
 
         public IList<WindowActivityLog> GetRecentLogs(int limit)
@@ -142,6 +209,24 @@ namespace FreeHub.Services
             double rawRequirement = BaseLevelXp * Math.Pow(level, LevelCurveExponent);
             int roundedToTen = ((int)Math.Round(rawRequirement / 10.0)) * 10;
             return roundedToTen < BaseLevelXp ? BaseLevelXp : roundedToTen;
+        }
+
+        private static void AppendSummaryRows(DataTable target, List<DataRow> sourceRows, bool isActiveRow, int grandTotalXp)
+        {
+            for (int i = 0; i < sourceRows.Count; i++)
+            {
+                DataRow src = sourceRows[i];
+                string machine = Convert.ToString(src["MachineName"], CultureInfo.InvariantCulture);
+                string category = Convert.ToString(src["Category"], CultureInfo.InvariantCulture);
+                double minutes = Convert.ToDouble(src["TotalMinutes"], CultureInfo.InvariantCulture);
+                int xp = Convert.ToInt32(src["TotalXp"], CultureInfo.InvariantCulture);
+
+                double sharePct = grandTotalXp > 0 ? (xp * 100.0) / grandTotalXp : 0.0;
+                string shareText = string.Format(CultureInfo.InvariantCulture, "{0:0.0}%", sharePct);
+                string statusText = isActiveRow ? "ACTIVE NOW" : "IDLE";
+
+                target.Rows.Add(statusText, machine, category, minutes, xp, shareText);
+            }
         }
 
         private void RecalculateLevelState()
@@ -177,13 +262,8 @@ namespace FreeHub.Services
             }
         }
 
-        private static int ApplyBonuses(int baseXp, int streak, bool musicBuffActive)
+        private static double CalculateMultiplier(int streak, bool musicBuffActive)
         {
-            if (baseXp <= 0)
-            {
-                return 0;
-            }
-
             double multiplier = 1.0;
 
             if (streak >= 3)
@@ -202,6 +282,17 @@ namespace FreeHub.Services
                 multiplier += 0.10;
             }
 
+            return multiplier;
+        }
+
+        private static int ApplyBonuses(int baseXp, int streak, bool musicBuffActive)
+        {
+            if (baseXp <= 0)
+            {
+                return 0;
+            }
+
+            double multiplier = CalculateMultiplier(streak, musicBuffActive);
             int finalXp = (int)Math.Round(baseXp * multiplier);
             if (musicBuffActive && finalXp <= baseXp)
             {

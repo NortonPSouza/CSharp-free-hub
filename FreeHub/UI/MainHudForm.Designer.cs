@@ -8,7 +8,7 @@ namespace FreeHub.UI
         private System.Windows.Forms.Label lblLevel;
         private System.Windows.Forms.Label lblXpStatus;
         private System.Windows.Forms.Label lblStreak;
-        private System.Windows.Forms.ProgressBar pbLevelProgress;
+        private FreeHub.UI.NeonProgressBar pbLevelProgress;
         private System.Windows.Forms.Panel pnlCurrentActivity;
         private System.Windows.Forms.Label lblActiveWindowTitle;
         private System.Windows.Forms.Label lblActiveProcessAndCategory;
@@ -36,11 +36,13 @@ namespace FreeHub.UI
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
+            System.Windows.Forms.DataGridViewCellStyle headerStyle = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle defaultCellStyle = new System.Windows.Forms.DataGridViewCellStyle();
             this.pnlHeader = new System.Windows.Forms.Panel();
             this.lblLevel = new System.Windows.Forms.Label();
             this.lblXpStatus = new System.Windows.Forms.Label();
             this.lblStreak = new System.Windows.Forms.Label();
-            this.pbLevelProgress = new System.Windows.Forms.ProgressBar();
+            this.pbLevelProgress = new FreeHub.UI.NeonProgressBar();
             this.pnlCurrentActivity = new System.Windows.Forms.Panel();
             this.btnCloudSettings = new System.Windows.Forms.Button();
             this.btnSyncCloud = new System.Windows.Forms.Button();
@@ -111,10 +113,10 @@ namespace FreeHub.UI
             // 
             this.pbLevelProgress.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.pbLevelProgress.Location = new System.Drawing.Point(16, 58);
+            this.pbLevelProgress.Location = new System.Drawing.Point(16, 56);
             this.pbLevelProgress.Maximum = 100;
             this.pbLevelProgress.Name = "pbLevelProgress";
-            this.pbLevelProgress.Size = new System.Drawing.Size(728, 26);
+            this.pbLevelProgress.Size = new System.Drawing.Size(728, 30);
             this.pbLevelProgress.TabIndex = 3;
             this.pbLevelProgress.Value = 0;
             // 
@@ -190,15 +192,38 @@ namespace FreeHub.UI
             // 
             this.dgvCategorySummary.AllowUserToAddRows = false;
             this.dgvCategorySummary.AllowUserToDeleteRows = false;
+            this.dgvCategorySummary.AllowUserToResizeRows = false;
             this.dgvCategorySummary.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.dgvCategorySummary.BackgroundColor = System.Drawing.Color.FromArgb(18, 18, 24);
             this.dgvCategorySummary.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.dgvCategorySummary.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvCategorySummary.CellBorderStyle = System.Windows.Forms.DataGridViewCellBorderStyle.SingleHorizontal;
+            this.dgvCategorySummary.ColumnHeadersBorderStyle = System.Windows.Forms.DataGridViewHeaderBorderStyle.None;
+            headerStyle.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            headerStyle.BackColor = System.Drawing.Color.FromArgb(26, 28, 38);
+            headerStyle.Font = new System.Drawing.Font("Segoe UI Semibold", 9.5F, System.Drawing.FontStyle.Bold);
+            headerStyle.ForeColor = System.Drawing.Color.FromArgb(160, 170, 195);
+            headerStyle.SelectionBackColor = System.Drawing.Color.FromArgb(26, 28, 38);
+            headerStyle.SelectionForeColor = System.Drawing.Color.FromArgb(160, 170, 195);
+            headerStyle.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+            this.dgvCategorySummary.ColumnHeadersDefaultCellStyle = headerStyle;
+            this.dgvCategorySummary.ColumnHeadersHeight = 36;
+            this.dgvCategorySummary.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            defaultCellStyle.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            defaultCellStyle.BackColor = System.Drawing.Color.FromArgb(20, 20, 28);
+            defaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Regular);
+            defaultCellStyle.ForeColor = System.Drawing.Color.FromArgb(210, 215, 225);
+            defaultCellStyle.SelectionBackColor = System.Drawing.Color.FromArgb(34, 42, 60);
+            defaultCellStyle.SelectionForeColor = System.Drawing.Color.White;
+            defaultCellStyle.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.dgvCategorySummary.DefaultCellStyle = defaultCellStyle;
             this.dgvCategorySummary.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.dgvCategorySummary.EnableHeadersVisualStyles = false;
+            this.dgvCategorySummary.GridColor = System.Drawing.Color.FromArgb(34, 36, 48);
             this.dgvCategorySummary.Location = new System.Drawing.Point(0, 180);
             this.dgvCategorySummary.Name = "dgvCategorySummary";
             this.dgvCategorySummary.ReadOnly = true;
             this.dgvCategorySummary.RowHeadersVisible = false;
+            this.dgvCategorySummary.RowTemplate.Height = 34;
             this.dgvCategorySummary.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.dgvCategorySummary.Size = new System.Drawing.Size(760, 260);
             this.dgvCategorySummary.TabIndex = 2;

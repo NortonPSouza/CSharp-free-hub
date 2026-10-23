@@ -15,7 +15,7 @@ namespace FreeHub.Infrastructure
 {
     /// <summary>
     /// Synchronizes local SQLite telemetry databases with Google Drive REST API v3 over HTTP using OAuth 2.0.
-    /// Zero external NuGet dependencies required.
+    /// Uses user-mode TcpListener for loopback OAuth redirect (no Administrator privileges required).
     /// </summary>
     public class GoogleDriveHttpSyncService : ICloudSyncService
     {
@@ -58,8 +58,21 @@ namespace FreeHub.Infrastructure
 
         public void SaveCredentials(string clientId, string clientSecret)
         {
-            _clientId = (clientId ?? string.Empty).Trim();
-            _clientSecret = (clientSecret ?? string.Empty).Trim();
+            string rawId = CleanCredentialValue(clientId);
+            string rawSecret = CleanCredentialValue(clientSecret);
+
+            // Support pasting the entire Google JSON content into the ClientId box if desired.
+            if (rawId.StartsWith("{"))
+            {
+                string parsedId = ExtractJsonStringValue(rawId, "client_id");
+                string parsedSecret = ExtractJsonStringValue(rawId, "client_secret");
+                if (!string.IsNullOrWhiteSpace(parsedId)) rawId = CleanCredentialValue(parsedId);
+                if (!string.IsNullOrWhiteSpace(parsedSecret)) rawSecret = CleanCredentialValue(parsedSecret);
+            }
+
+            _clientId = rawId;
+            _clientSecret = rawSecret;
+            _refreshToken = null;
             PersistConfiguration();
         }
 
@@ -161,13 +174,13 @@ namespace FreeHub.Infrastructure
 
         private async Task<string> PerformInteractiveBrowserLoginAsync()
         {
-            int port = GetAvailableLocalPort();
-            string redirectUri = string.Format("http://127.0.0.1:{0}/callback/", port);
+            TcpListener tcpListener = new TcpListener(IPAddress.Loopback, 0);
+            tcpListener.Start();
 
-            using (HttpListener listener = new HttpListener())
+            try
             {
-                listener.Prefixes.Add(redirectUri);
-                listener.Start();
+                int port = ((IPEndPoint)tcpListener.LocalEndpoint).Port;
+                string redirectUri = string.Format("http://127.0.0.1:{0}", port);
 
                 string authUrl = string.Format(
                     "https://accounts.google.com/o/oauth2/v2/auth?client_id={0}&redirect_uri={1}&response_type=code&scope={2}&access_type=offline&prompt=consent",
@@ -181,21 +194,46 @@ namespace FreeHub.Infrastructure
                     UseShellExecute = true
                 });
 
-                HttpListenerContext context = await listener.GetContextAsync().ConfigureAwait(false);
-                string code = context.Request.QueryString["code"];
+                string code = null;
+                for (int attempt = 0; attempt < 5 && string.IsNullOrWhiteSpace(code); attempt++)
+                {
+                    using (TcpClient clientSocket = await tcpListener.AcceptTcpClientAsync().ConfigureAwait(false))
+                    using (NetworkStream networkStream = clientSocket.GetStream())
+                    using (StreamReader reader = new StreamReader(networkStream, Encoding.ASCII, false, 4096, true))
+                    {
+                        string requestLine = await reader.ReadLineAsync().ConfigureAwait(false);
+                        if (string.IsNullOrWhiteSpace(requestLine))
+                        {
+                            continue;
+                        }
 
-                string htmlResponse = "<html><body style='font-family:Segoe UI,sans-serif;background:#121218;color:#00E676;text-align:center;padding-top:80px;'>"
-                    + "<h2>FreeHub Connected to Google Drive!</h2>"
-                    + "<p style='color:#CCC;'>You can close this browser tab and return to FreeHub.</p></body></html>";
-                byte[] buffer = Encoding.UTF8.GetBytes(htmlResponse);
-                context.Response.ContentLength64 = buffer.Length;
-                context.Response.OutputStream.Write(buffer, 0, buffer.Length);
-                context.Response.OutputStream.Close();
-                listener.Stop();
+                        // Drain remaining HTTP request headers
+                        string headerLine;
+                        do
+                        {
+                            headerLine = await reader.ReadLineAsync().ConfigureAwait(false);
+                        }
+                        while (!string.IsNullOrEmpty(headerLine));
+
+                        code = ExtractAuthCodeFromHttpRequestLine(requestLine);
+
+                        string htmlBody = "<html><body style='font-family:Segoe UI,sans-serif;background:#121218;color:#00E676;text-align:center;padding-top:80px;'>"
+                            + "<h2>FreeHub Connected to Google Drive!</h2>"
+                            + "<p style='color:#CCC;'>Authentication complete. You can close this browser tab and return to FreeHub.</p></body></html>";
+                        byte[] bodyBytes = Encoding.UTF8.GetBytes(htmlBody);
+                        string httpHeader = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: "
+                            + bodyBytes.Length + "\r\nConnection: close\r\n\r\n";
+                        byte[] headerBytes = Encoding.ASCII.GetBytes(httpHeader);
+
+                        await networkStream.WriteAsync(headerBytes, 0, headerBytes.Length).ConfigureAwait(false);
+                        await networkStream.WriteAsync(bodyBytes, 0, bodyBytes.Length).ConfigureAwait(false);
+                        await networkStream.FlushAsync().ConfigureAwait(false);
+                    }
+                }
 
                 if (string.IsNullOrWhiteSpace(code))
                 {
-                    return null;
+                    throw new InvalidOperationException("Google did not return an authorization code.");
                 }
 
                 using (HttpClient client = new HttpClient())
@@ -228,6 +266,26 @@ namespace FreeHub.Infrastructure
                     return accessToken;
                 }
             }
+            finally
+            {
+                tcpListener.Stop();
+            }
+        }
+
+        private static string ExtractAuthCodeFromHttpRequestLine(string requestLine)
+        {
+            if (string.IsNullOrWhiteSpace(requestLine))
+            {
+                return null;
+            }
+
+            Match match = Regex.Match(requestLine, "[?&]code=([^&\\s]+)");
+            if (!match.Success)
+            {
+                return null;
+            }
+
+            return Uri.UnescapeDataString(match.Groups[1].Value);
         }
 
         private async Task<string> EnsureDriveFolderAsync(HttpClient httpClient)
@@ -237,7 +295,12 @@ namespace FreeHub.Infrastructure
                 DriveFolderName);
 
             string listUrl = "https://www.googleapis.com/drive/v3/files?q=" + Uri.EscapeDataString(query) + "&fields=files(id,name)";
-            string listJson = await httpClient.GetStringAsync(listUrl).ConfigureAwait(false);
+            HttpResponseMessage listResponse = await httpClient.GetAsync(listUrl).ConfigureAwait(false);
+            string listJson = await listResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+            if (!listResponse.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException("Google Drive API error (make sure Google Drive API is Enabled in Cloud Console): " + listJson);
+            }
 
             IList<DriveFileEntry> folders = ParseDriveFilesList(listJson);
             if (folders.Count > 0)
@@ -373,13 +436,14 @@ namespace FreeHub.Infrastructure
             }
         }
 
-        private static int GetAvailableLocalPort()
+        private static string CleanCredentialValue(string raw)
         {
-            TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            listener.Stop();
-            return port;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return string.Empty;
+            }
+
+            return raw.Trim().Trim('"', '\'', ',', ' ');
         }
 
         private static string ExtractJsonStringValue(string json, string propertyName)
@@ -437,7 +501,7 @@ namespace FreeHub.Infrastructure
                     }
 
                     string key = line.Substring(0, separatorIndex).Trim();
-                    string value = line.Substring(separatorIndex + 1).Trim();
+                    string value = CleanCredentialValue(line.Substring(separatorIndex + 1));
 
                     if (string.Equals(key, "ClientId", StringComparison.OrdinalIgnoreCase))
                     {
